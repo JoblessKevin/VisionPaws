@@ -1,21 +1,21 @@
 <template>
-  <div class="homepage">
-    <!-- 頁面標題區域 -->
-    <div class="header">
-      <h1>VisionPaws.ai</h1>
-      <p>Upload an image to analyze animals</p>
-    </div>
+  <div class="page-container">
+    <!-- Left Side - Fixed Content -->
+    <div class="left-panel">
+      <!-- Title -->
+      <div class="header">
+        <h1>VisionPaws.ai</h1>
+        <p>Upload an image to analyze animals</p>
+      </div>
 
-    <!-- 主要內容區域 -->
-    <div class="content-container">
-      <!-- 上傳區域 -->
+      <!-- Upload Section -->
       <FileUpload
         :multiple="false"
         accept="image/*"
         :maxFileSize="5000000"
         @select="onSelect"
         :auto="true"
-        chooseLabel="選擇圖片"
+        chooseLabel="choose file"
         :showCancelButton="false"
         :showUploadButton="false"
         class="upload-section"
@@ -23,36 +23,48 @@
         <template #empty>
           <div class="upload-placeholder">
             <i class="pi pi-image" style="font-size: 2rem"></i>
-            <span>拖放圖片至此或點擊上傳</span>
-            <span class="upload-hint">支援的格式: JPG, PNG (最大 5MB)</span>
+            <span>Drag and drop the image here or click to upload</span>
+            <span class="upload-hint"
+              >Supported formats: JPG, PNG (max 5MB)</span
+            >
           </div>
         </template>
       </FileUpload>
+    </div>
 
-      <!-- 預覽和結果區域 -->
+    <!-- Right Side - Scrollable Content -->
+    <div class="right-panel">
+      <!-- Preview and results area -->
       <div v-if="selectedImage || analysisResult" class="result-container">
-        <!-- 圖片預覽 -->
+        <!-- Image Preview -->
         <div v-if="selectedImage" class="preview-section">
-          <h2>預覽圖片</h2>
+          <h2>Preview Image</h2>
           <img :src="selectedImage" alt="Preview" class="preview-image" />
         </div>
 
-        <!-- 分析結果 -->
+        <!-- Analysis Result -->
         <div v-if="analysisResult" class="analysis-section">
-          <h2>分析結果</h2>
-          <Card>
+          <h2>Analysis Result</h2>
+          <Card class="result-card">
             <template #content>
-              <div v-html="analysisResult"></div>
+              <div class="result-content">
+                <div
+                  v-for="(section, index) in analysisResult"
+                  :key="index"
+                  class="result-section"
+                  v-html="formatMarkdown(section)"
+                ></div>
+              </div>
             </template>
           </Card>
         </div>
       </div>
-
-      <!-- 載入中狀態 -->
-      <ProgressSpinner v-if="loading" class="spinner" />
     </div>
 
-    <!-- 錯誤訊息 -->
+    <!-- Loading Spinner -->
+    <ProgressSpinner v-if="loading" class="spinner" />
+
+    <!-- Toast Messages -->
     <Toast position="bottom-right" />
   </div>
 </template>
@@ -61,13 +73,13 @@
 import { ref, onMounted } from "vue";
 import { useToast } from "primevue/usetoast";
 
-// 狀態管理
+//  Vue-state-management
 const selectedImage = ref(null);
 const analysisResult = ref(null);
 const loading = ref(false);
 const toast = useToast();
 
-// 當選擇檔案時的處理
+// What to do when selecting a file
 const onSelect = async (event) => {
   const file = event.files[0];
   if (file) {
@@ -83,28 +95,28 @@ const onSelect = async (event) => {
       console.error("Error processing image:", error);
       toast.add({
         severity: "error",
-        summary: "錯誤",
-        detail: "圖片處理失敗，請稍後再試",
+        summary: "error",
+        detail: "Image processing failed, please try again later",
         life: 3000,
       });
     }
   }
 };
 
-// 處理圖片上傳和分析的完整流程
+// Complete process for handling image upload and analysis
 const processImage = async (file) => {
   try {
     loading.value = true;
 
-    // 步驟1: 上傳圖片並取得 file id
+    // Step 1: Upload the image and get the file id
     const uploadResult = await uploadImage(file);
-    console.log("Upload result:", uploadResult); // 除錯用
+    console.log("Upload result:", uploadResult); // For debugging
 
     if (!uploadResult || !uploadResult.id) {
       throw new Error("Failed to get upload file id");
     }
 
-    // 步驟2: 使用取得的 file id 執行影像分析
+    // Step 2: Use the obtained file id to perform image analysis
     await analyzeImage(uploadResult.id);
   } catch (error) {
     console.error("Process error:", error);
@@ -114,7 +126,7 @@ const processImage = async (file) => {
   }
 };
 
-// 上傳圖片到 Dify
+// Upload image to Dify
 const uploadImage = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -136,30 +148,30 @@ const uploadImage = async (file) => {
     }
 
     const data = await response.json();
-    console.log("Upload response data:", data); // 除錯用
-    return data; // 返回完整的回應數據，包含 id
+    console.log("Upload response data:", data); // for debugging
+    return data; // Return complete response data, including id
   } catch (error) {
     console.error("Error uploading image:", error);
     toast.add({
       severity: "error",
-      summary: "錯誤",
-      detail: "圖片上傳失敗：" + error.message,
+      summary: "error",
+      detail: "Image upload failed: " + error.message,
       life: 3000,
     });
     throw error;
   }
 };
 
-// 使用 Dify Workflow 分析圖片
+// Analyze images using Dify Workflow
 const analyzeImage = async (fileId) => {
   console.log("Analyzing with:", import.meta.env.VITE_DIFY_WORKFLOW_ENDPOINT);
   try {
-    // 準備 payload，使用上傳後獲得的 file id
+    // Prepare the payload, using the file id obtained after uploading
     const payload = {
       inputs: {
         pic: {
           transfer_method: "local_file",
-          upload_file_id: fileId, // 使用從第一個 API 獲得的 id
+          upload_file_id: fileId, // Use the id obtained from the first API
           type: "image",
         },
       },
@@ -167,7 +179,7 @@ const analyzeImage = async (fileId) => {
       user: "Ambre",
     };
 
-    console.log("Analysis payload:", payload); // 除錯用
+    console.log("Analysis payload:", payload); // for debugging
 
     const response = await fetch(import.meta.env.VITE_DIFY_WORKFLOW_ENDPOINT, {
       method: "POST",
@@ -185,27 +197,59 @@ const analyzeImage = async (fileId) => {
     }
 
     const data = await response.json();
-    console.log("Analysis response data:", data); // 除錯用
+    console.log("Analysis response data:", data); // for debugging
 
-    // 根據實際 API 回傳格式處理結果
-    analysisResult.value = data.answer || data.response || JSON.stringify(data);
+    console.log(
+      "test!!!!!: data.data.outputs.result",
+      data.data.outputs.result
+    );
+
+    // Process results according to actual API return format
+    //analysisResult.value = data.answer || data.response || JSON.stringify(data)
+
+    // fetch data.data.outputs.result
+    if (data.data?.outputs?.result) {
+      // Split the result into sections
+      const formattedResult = data.data.outputs.result
+        .split("\n\n")
+        .map((section) => {
+          return section.trim(); // remove leading/trailing spaces
+        })
+        .filter((section) => section); // remove empty sections
+
+      analysisResult.value = formattedResult;
+    } else {
+      analysisResult.value = ["Unable to fetch analysis result"];
+    }
 
     toast.add({
       severity: "success",
-      summary: "分析完成",
-      detail: "圖片分析已完成",
+      summary: "Image Analysis Completed",
+      detail: "Image Analysis Completed",
       life: 3000,
     });
   } catch (error) {
     console.error("Error analyzing image:", error);
     toast.add({
       severity: "error",
-      summary: "錯誤",
-      detail: "圖片分析失敗：" + error.message,
+      summary: "error",
+      detail: "Image Analysis Failed:" + error.message,
       life: 3000,
     });
     throw error;
   }
+};
+
+const formatMarkdown = (text) => {
+  return (
+    text
+      // Bold
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      // Italic
+      .replace(/\s*-\s+/g, "<br>• ")
+      // Line break
+      .replace(/\n/g, "<br>")
+  );
 };
 
 onMounted(() => {
@@ -218,27 +262,54 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 保持原有的 CSS 樣式不變 */
-.homepage {
-  max-width: 1200px;
-  margin: 0 auto;
+.page-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  background-color: #f0f2f5;
+}
+
+.page-container {
+  display: flex;
+  width: 90vw;
+  height: 80vh;
+  max-width: 1400px;
+  max-height: 900px;
+  min-width: 900px;
+  min-height: 600px;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.left-panel {
+  width: 400px;
+  height: 100%;
+  padding: 2rem;
+  background-color: #f8f9fa;
+  border-right: 1px solid #dee2e6;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.right-panel {
+  flex-grow: 1;
+  height: 100%;
+  overflow-y: auto;
   padding: 2rem;
 }
 
 .header {
   text-align: center;
-  margin-bottom: 2rem;
 }
 
 .header h1 {
   color: var(--primary-color);
   margin-bottom: 0.5rem;
-}
-
-.content-container {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
 }
 
 .upload-section {
@@ -260,21 +331,23 @@ onMounted(() => {
 }
 
 .result-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 2rem;
 }
 
 .preview-section,
 .analysis-section {
   padding: 1rem;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .preview-image {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .spinner {
@@ -282,15 +355,59 @@ onMounted(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  z-index: 1000;
+}
+
+.result-card {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+}
+
+.result-content {
+  padding: 1.5rem;
+}
+
+.result-section {
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #333;
+}
+
+.result-section:last-child {
+  margin-bottom: 0;
+}
+
+.result-section strong {
+  color: #1a73e8;
+}
+
+.result-section br {
+  display: block;
+  margin: 0.5rem 0;
+}
+
+@media (max-width: 1200px) {
+  .page-container {
+    width: 100%;
+    height: 100%;
+    min-height: 600px;
+  }
 }
 
 @media (max-width: 768px) {
-  .homepage {
-    padding: 1rem;
+  .page-container {
+    flex-direction: column;
   }
 
-  .result-container {
-    grid-template-columns: 1fr;
+  .left-panel {
+    width: 100%;
+    height: auto;
+    min-height: 300px;
+  }
+
+  .right-panel {
+    height: calc(100% - 300px);
   }
 }
 </style>
